@@ -1,10 +1,23 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+import os
+import uuid
+from math import ceil
+
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    UploadFile,
+    status
+)
 from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..dependencies import get_current_user
 from ..models import Post, User
-from ..schemas import PostCreate, PostUpdate, PostResponse
+from ..schemas import PaginatedPostResponse, PostResponse
 
 
 router = APIRouter(
@@ -13,19 +26,39 @@ router = APIRouter(
 )
 
 
+# Image upload directory
+MEDIA_DIR = "media/posts"
+os.makedirs(MEDIA_DIR, exist_ok=True)
+
+
 @router.post(
     "/",
     response_model=PostResponse,
     status_code=status.HTTP_201_CREATED
 )
 def create_post(
-    post_data: PostCreate,
+    title: str = Form(...),
+    content: str = Form(...),
+    image: UploadFile | None = File(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    image_path = None
+
+    if image:
+        file_extension = os.path.splitext(image.filename)[1]
+        unique_filename = f"{uuid.uuid4()}{file_extension}"
+        file_path = os.path.join(MEDIA_DIR, unique_filename)
+
+        with open(file_path, "wb") as buffer:
+            buffer.write(image.file.read())
+
+        image_path = f"/media/posts/{unique_filename}"
+
     new_post = Post(
-        title=post_data.title,
-        content=post_data.content,
+        title=title,
+        content=content,
+        image=image_path,
         author_id=current_user.id
     )
 
@@ -35,18 +68,54 @@ def create_post(
 
     return new_post
 
+
 @router.get(
     "/",
-    response_model=list[PostResponse]
+    response_model=PaginatedPostResponse
 )
 def get_posts(
+    page: int = Query(1, ge=1),
+    limit: int = Query(10, ge=1, le=100),
+    search: str | None = Query(None),
     db: Session = Depends(get_db)
 ):
-    posts = db.query(Post).order_by(
-        Post.created_at.desc()
-    ).all()
+    query = db.query(Post)
 
-    return posts
+    # Search by title or content
+    if search:
+        search_term = f"%{search}%"
+
+        query = query.filter(
+            Post.title.ilike(search_term) |
+            Post.content.ilike(search_term)
+        )
+
+    # Total number of matching posts
+    total = query.count()
+
+    # Calculate total pages
+    total_pages = ceil(total / limit) if total > 0 else 0
+
+    # Calculate starting position
+    offset = (page - 1) * limit
+
+    # Get paginated posts
+    posts = (
+        query
+        .order_by(Post.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+
+    return {
+        "posts": posts,
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "total_pages": total_pages
+    }
+
 
 @router.get(
     "/{post_id}",
@@ -68,13 +137,16 @@ def get_post(
 
     return post
 
+
 @router.put(
     "/{post_id}",
     response_model=PostResponse
 )
 def update_post(
     post_id: int,
-    post_data: PostUpdate,
+    title: str = Form(...),
+    content: str = Form(...),
+    image: UploadFile | None = File(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -94,13 +166,25 @@ def update_post(
             detail="You can only update your own posts"
         )
 
-    post.title = post_data.title
-    post.content = post_data.content
+    post.title = title
+    post.content = content
+
+    # Replace image if a new image is uploaded
+    if image:
+        file_extension = os.path.splitext(image.filename)[1]
+        unique_filename = f"{uuid.uuid4()}{file_extension}"
+        file_path = os.path.join(MEDIA_DIR, unique_filename)
+
+        with open(file_path, "wb") as buffer:
+            buffer.write(image.file.read())
+
+        post.image = f"/media/posts/{unique_filename}"
 
     db.commit()
     db.refresh(post)
 
     return post
+
 
 @router.delete(
     "/{post_id}",
