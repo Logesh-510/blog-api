@@ -70,9 +70,9 @@ blog-api/
 │
 ├── .env
 ├── .gitignore
-├── blog.db
 ├── requirements.txt
-└── README.md
+├── README.md
+└── Blog_Management_API_Postman_Collection.json
 ```
 
 > `.env`, `blog.db`, and `venv/` should not be committed to GitHub.
@@ -396,7 +396,8 @@ Security-related features include:
 
 ## Testing
 
-The API was manually tested through Swagger UI.
+The API was tested using Swagger UI and Postman.
+A Postman collection containing the API requests and error-handling tests is included in the repository.
 
 Tested functionality includes:
 
@@ -420,3 +421,19 @@ Tested functionality includes:
 * Invalid JWT handling
 * Email notifications
 * Dependency installation
+  
+### Postman Collection
+
+The Postman collection is available in the project root:
+
+`Blog_Management_API_Postman_Collection.json`
+
+It includes requests for:
+
+- Authentication
+- Post CRUD operations
+- Comments
+- Likes and unlikes
+- Duplicate-like validation
+- Ownership authorization
+- Authentication and validation errors
