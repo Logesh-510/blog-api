@@ -1,6 +1,7 @@
 import os
 import uuid
 from math import ceil
+from typing import Annotated
 
 from fastapi import (
     APIRouter,
@@ -16,7 +17,7 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..dependencies import get_current_user
-from ..models import Post, User
+from ..models import Post, PostImage, SubscriptionPlan, User
 from ..schemas import PaginatedPostResponse, PostResponse
 
 
@@ -31,6 +32,17 @@ MEDIA_DIR = "media/posts"
 os.makedirs(MEDIA_DIR, exist_ok=True)
 
 
+def save_image(image: UploadFile) -> str:
+    file_extension = os.path.splitext(image.filename)[1]
+    unique_filename = f"{uuid.uuid4()}{file_extension}"
+    file_path = os.path.join(MEDIA_DIR, unique_filename)
+
+    with open(file_path, "wb") as buffer:
+        buffer.write(image.file.read())
+
+    return f"/media/posts/{unique_filename}"
+
+
 @router.post(
     "/",
     response_model=PostResponse,
@@ -39,30 +51,79 @@ os.makedirs(MEDIA_DIR, exist_ok=True)
 def create_post(
     title: str = Form(...),
     content: str = Form(...),
-    image: UploadFile | None = File(None),
+    images: Annotated[
+        list[UploadFile],
+        File(description="Upload one or more images")
+    ] = [],
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    image_path = None
+    # Check active subscription
+    if current_user.subscription_plan_id is None:
+        raise HTTPException(
+            status_code=403,
+            detail="You need an active subscription to create posts."
+        )
 
-    if image:
-        file_extension = os.path.splitext(image.filename)[1]
-        unique_filename = f"{uuid.uuid4()}{file_extension}"
-        file_path = os.path.join(MEDIA_DIR, unique_filename)
+    plan = db.query(SubscriptionPlan).filter(
+        SubscriptionPlan.id == current_user.subscription_plan_id
+    ).first()
 
-        with open(file_path, "wb") as buffer:
-            buffer.write(image.file.read())
+    if plan is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Active subscription plan not found."
+        )
 
-        image_path = f"/media/posts/{unique_filename}"
+    # Check maximum number of posts
+    if plan.max_posts is not None:
+        post_count = db.query(Post).filter(
+            Post.author_id == current_user.id
+        ).count()
+
+        if post_count >= plan.max_posts:
+            raise HTTPException(
+                status_code=403,
+                detail="You’ve reached your plan limit. Kindly upgrade your plan to continue."
+            )
+
+    # Check maximum images per post
+    if plan.max_images_per_post is not None:
+        if len(images) > plan.max_images_per_post:
+            raise HTTPException(
+                status_code=403,
+                detail="You’ve reached your plan limit. Kindly upgrade your plan to continue."
+            )
+
+    image_paths = []
+
+    for image in images:
+        image_path = save_image(image)
+        image_paths.append(image_path)
+
+    # Main image for backward compatibility
+    main_image = image_paths[0] if image_paths else None
 
     new_post = Post(
         title=title,
         content=content,
-        image=image_path,
+        image=main_image,
         author_id=current_user.id
     )
 
     db.add(new_post)
+    db.commit()
+    db.refresh(new_post)
+
+    # Save multiple images
+    for image_path in image_paths:
+        post_image = PostImage(
+            post_id=new_post.id,
+            image_path=image_path
+        )
+
+        db.add(post_image)
+
     db.commit()
     db.refresh(new_post)
 
@@ -171,14 +232,8 @@ def update_post(
 
     # Replace image if a new image is uploaded
     if image:
-        file_extension = os.path.splitext(image.filename)[1]
-        unique_filename = f"{uuid.uuid4()}{file_extension}"
-        file_path = os.path.join(MEDIA_DIR, unique_filename)
-
-        with open(file_path, "wb") as buffer:
-            buffer.write(image.file.read())
-
-        post.image = f"/media/posts/{unique_filename}"
+        image_path = save_image(image)
+        post.image = image_path
 
     db.commit()
     db.refresh(post)

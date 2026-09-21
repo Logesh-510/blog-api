@@ -5,3 +5,5 @@ __pycache__/
 blog.db
 media/posts/*
 !media/posts/.gitkeep
+media/invoices/*
+!media/invoices/.gitkeep

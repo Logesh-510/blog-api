@@ -2,6 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, EmailStr, Field
 
+
 class UserRegister(BaseModel):
     username: str = Field(min_length=3, max_length=50)
     email: EmailStr
@@ -26,6 +27,7 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
+
 class PostCreate(BaseModel):
     title: str = Field(min_length=3, max_length=200)
     content: str = Field(min_length=10)
@@ -41,11 +43,13 @@ class PostResponse(BaseModel):
     title: str
     content: str
     image: str | None = None
+    images: list[str] = []
     author_id: int
     created_at: datetime
 
     class Config:
         from_attributes = True
+
 
 class PaginatedPostResponse(BaseModel):
     posts: list[PostResponse]
@@ -54,8 +58,10 @@ class PaginatedPostResponse(BaseModel):
     limit: int
     total_pages: int
 
+
 class CommentCreate(BaseModel):
     text: str = Field(min_length=1, max_length=1000)
+
 
 class CommentResponse(BaseModel):
     id: int
@@ -66,6 +72,7 @@ class CommentResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
 
 class LikeResponse(BaseModel):
     id: int
