@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..dependencies import get_current_user
 from ..email import send_email
-from ..models import Comment, Post, User
+from ..models import Comment, Post, SubscriptionPlan, User
 from ..schemas import CommentCreate, CommentResponse
 
 
@@ -34,6 +34,35 @@ def create_comment(
             status_code=404,
             detail="Post not found"
         )
+
+    # Check active subscription
+    if current_user.subscription_plan_id is None:
+        raise HTTPException(
+            status_code=403,
+            detail="You need an active subscription to comment."
+        )
+
+    plan = db.query(SubscriptionPlan).filter(
+        SubscriptionPlan.id == current_user.subscription_plan_id
+    ).first()
+
+    if plan is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Active subscription plan not found."
+        )
+
+    # Check comment limit
+    if plan.max_comments is not None:
+        comment_count = db.query(Comment).filter(
+            Comment.user_id == current_user.id
+        ).count()
+
+        if comment_count >= plan.max_comments:
+            raise HTTPException(
+                status_code=403,
+                detail="You’ve reached your plan limit. Kindly upgrade your plan to continue."
+            )
 
     new_comment = Comment(
         post_id=post_id,

@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..dependencies import get_current_user
 from ..email import send_email
-from ..models import Like, Post, User
+from ..models import Like, Post, SubscriptionPlan, User
 from ..schemas import LikeResponse
 
 
@@ -33,6 +33,35 @@ def like_post(
             status_code=404,
             detail="Post not found"
         )
+
+    # Check active subscription
+    if current_user.subscription_plan_id is None:
+        raise HTTPException(
+            status_code=403,
+            detail="You need an active subscription to like posts."
+        )
+
+    plan = db.query(SubscriptionPlan).filter(
+        SubscriptionPlan.id == current_user.subscription_plan_id
+    ).first()
+
+    if plan is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Active subscription plan not found."
+        )
+
+    # Check like limit
+    if plan.max_likes is not None:
+        like_count = db.query(Like).filter(
+            Like.user_id == current_user.id
+        ).count()
+
+        if like_count >= plan.max_likes:
+            raise HTTPException(
+                status_code=403,
+                detail="You’ve reached your plan limit. Kindly upgrade your plan to continue."
+            )
 
     existing_like = db.query(Like).filter(
         Like.post_id == post_id,
@@ -67,6 +96,7 @@ def like_post(
     )
 
     return new_like
+
 
 @router.delete(
     "/",
