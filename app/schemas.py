@@ -37,7 +37,6 @@ class PostUpdate(BaseModel):
     title: str = Field(min_length=3, max_length=200)
     content: str = Field(min_length=10)
 
-
 class PostResponse(BaseModel):
     id: int
     title: str
@@ -49,7 +48,6 @@ class PostResponse(BaseModel):
 
     class Config:
         from_attributes = True
-
 
 class PaginatedPostResponse(BaseModel):
     posts: list[PostResponse]

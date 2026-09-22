@@ -173,6 +173,12 @@ class Like(Base):
         nullable=False
     )
 
+    created_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False
+    )
+
     post = relationship(
         "Post",
         back_populates="likes"

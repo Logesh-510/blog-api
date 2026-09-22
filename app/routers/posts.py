@@ -170,7 +170,18 @@ def get_posts(
     )
 
     return {
-        "posts": posts,
+        "posts": [
+            {
+                "id": post.id,
+                "title": post.title,
+                "content": post.content,
+                "image": post.image,
+                "images": [img.image_path for img in post.images],
+                "author_id": post.author_id,
+                "created_at": post.created_at,
+            }
+            for post in posts
+        ],
         "total": total,
         "page": page,
         "limit": limit,
