@@ -79,3 +79,16 @@ class LikeResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class DashboardPostStats(BaseModel):
+    post_id: int
+    title: str
+    likes: int
+    comments: int
+
+class DashboardResponse(BaseModel):
+    total_posts: int
+    total_comments: int
+    total_likes_received: int
+    total_views: int
+    posts: list[DashboardPostStats]

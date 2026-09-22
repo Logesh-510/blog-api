@@ -1,35 +1,65 @@
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from .database import Base, engine
 from . import models
-from .routers import auth, posts, comments, likes, subscriptions
-
+from .routers import (
+    auth,
+    posts,
+    comments,
+    likes,
+    subscriptions,
+    dashboard as dashboard_router
+)
 
 Base.metadata.create_all(bind=engine)
-
 
 app = FastAPI(
     title="Blog Management API",
     version="1.0.0"
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-# Serve uploaded images
+# Base directory
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Media directory
 MEDIA_DIR = BASE_DIR / "media"
 
-app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media")
+# Serve uploaded images
+app.mount(
+    "/media",
+    StaticFiles(directory=MEDIA_DIR),
+    name="media"
+)
 
+# Serve User Dashboard
+@app.get("/dashboard")
+def dashboard():
+    return FileResponse(
+        BASE_DIR / "dashboard" / "dashboard.html"
+    )
 
+# Include routers
 app.include_router(auth.router)
 app.include_router(posts.router)
 app.include_router(comments.router)
 app.include_router(likes.router)
 app.include_router(subscriptions.router)
+app.include_router(dashboard_router.router)
 
+# Root endpoint
 @app.get("/")
 def root():
     return {

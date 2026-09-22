@@ -207,7 +207,22 @@ def get_post(
             detail="Post not found"
         )
 
-    return post
+    # Track post view
+    post.views += 1
+
+    db.commit()
+    db.refresh(post)
+
+    # Return response with image paths
+    return {
+        "id": post.id,
+        "title": post.title,
+        "content": post.content,
+        "image": post.image,
+        "images": [img.image_path for img in post.images],
+        "author_id": post.author_id,
+        "created_at": post.created_at,
+    }
 
 
 @router.put(

@@ -80,6 +80,7 @@ class Post(Base):
     content = Column(Text, nullable=False)
     image = Column(String(500), nullable=True)
     author_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    views = Column(Integer, default=0, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     author = relationship(
