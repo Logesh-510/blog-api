@@ -2,13 +2,14 @@
 
 A backend REST API for a mini blogging platform built with **FastAPI**, **SQLAlchemy**, and **SQLite**.
 
-The API provides JWT authentication, blog post management, comments, likes/unlikes, ownership protection, input validation, and email notifications.
+The API provides JWT authentication, blog post management, comments, likes/unlikes, image uploads, pagination and search, subscription-based access control, billing history, email notifications, post view tracking, and a user dashboard with interactive analytics.
 
 ## Features
 
 * User registration
 * Secure password hashing with bcrypt
 * JWT-based authentication
+* Login using username or email
 * Protected API endpoints
 * Get current authenticated user
 * Create blog posts
@@ -17,12 +18,27 @@ The API provides JWT authentication, blog post management, comments, likes/unlik
 * Update own posts
 * Delete own posts
 * Ownership-based authorization
+* Multiple image uploads per post
+* Post image serving through `/media`
+* Pagination for posts
+* Search posts by title/content
 * Add comments to posts
 * View post comments publicly
 * Like and unlike posts
 * Prevent duplicate likes
+* Subscription plans
+* Plan-based post, image, like, and comment limits
+* Basic, Premium, and Pro subscription plans
+* Billing history
+* Subscription limit validation
 * Email notification for new comments
 * Email notification for new likes
+* Post view tracking
+* User dashboard API
+* Dashboard statistics and analytics
+* Chart.js visualization
+* Per-post likes and comments chart
+* Responsive dashboard UI
 * Input validation with Pydantic
 * Proper HTTP error handling
 * SQLite database with SQLAlchemy ORM
@@ -43,6 +59,7 @@ The API provides JWT authentication, blog post management, comments, likes/unlik
 | Passlib + bcrypt | Password hashing                |
 | Python-dotenv    | Environment variable management |
 | SMTP             | Email notifications             |
+| Chart.js         | Dashboard data visualization    |
 | Uvicorn          | ASGI server                     |
 | Swagger UI       | API testing and documentation   |
 
@@ -66,7 +83,18 @@ blog-api/
 │       ├── auth.py
 │       ├── posts.py
 │       ├── comments.py
-│       └── likes.py
+│       ├── likes.py
+│       ├── subscriptions.py
+│       └── dashboard.py
+│
+├── dashboard/
+│   └── dashboard.html
+│
+├── media/
+│   ├── posts/
+│   │   └── .gitkeep
+│   └── invoices/
+│       └── .gitkeep
 │
 ├── .env
 ├── .gitignore
@@ -75,7 +103,7 @@ blog-api/
 └── Blog_Management_API_Postman_Collection.json
 ```
 
-> `.env`, `blog.db`, and `venv/` should not be committed to GitHub.
+> `.env`, `blog.db`, `venv/`, uploaded images, and generated invoices should not be committed to GitHub.
 
 ## Installation
 
@@ -154,9 +182,13 @@ You can use Swagger UI to:
 * Login
 * Authorize with JWT
 * Create posts
+* Upload post images
 * Update/delete posts
+* Search and paginate posts
 * Add comments
 * Like/unlike posts
+* Manage subscriptions
+* View dashboard statistics
 * Test validation and authorization errors
 
 OpenAPI JSON:
@@ -191,6 +223,8 @@ POST /auth/login
 
 The login endpoint returns a JWT access token.
 
+Login supports either username or email.
+
 Use the token in protected requests:
 
 ```text
@@ -215,6 +249,8 @@ POST /posts/
 
 Authentication required.
 
+Post creation supports one or more image uploads.
+
 ### Get All Posts
 
 ```http
@@ -223,6 +259,20 @@ GET /posts/
 
 Public endpoint.
 
+Supports pagination and search.
+
+Example:
+
+```text
+GET /posts/?page=1&limit=10
+```
+
+Example search:
+
+```text
+GET /posts/?search=FastAPI
+```
+
 ### Get Single Post
 
 ```http
@@ -230,6 +280,8 @@ GET /posts/{post_id}
 ```
 
 Public endpoint.
+
+Each successful request tracks a post view.
 
 ### Update Post
 
@@ -293,6 +345,103 @@ DELETE /posts/{post_id}/like/
 
 Authentication required.
 
+## Subscription & Billing
+
+The API provides subscription-based access control.
+
+### Subscription Plans
+
+Available plans:
+
+| Plan    | Price | Max Posts | Max Images/Post | Max Likes | Max Comments |
+| ------- | ----: | --------: | --------------: | --------: | -----------: |
+| Basic   |    99 |         1 |               1 |         5 |            5 |
+| Premium |   199 |         2 |               2 |        20 |           20 |
+| Pro     |   399 | Unlimited |       Unlimited | Unlimited |    Unlimited |
+
+### View Available Plans
+
+```http
+GET /subscriptions/plans
+```
+
+### View Current Subscription
+
+```http
+GET /subscriptions/current
+```
+
+Authentication required.
+
+### Subscription Limits
+
+When a user reaches their subscription limit, the API returns:
+
+```text
+You've reached your plan limit. Kindly upgrade your plan to continue.
+```
+
+Users without an active subscription cannot create posts.
+
+### Billing History
+
+Subscription and payment information is stored in the billing history table.
+
+## User Dashboard
+
+The application provides a user dashboard for personal activity statistics and analytics.
+
+### Dashboard API
+
+```http
+GET /user/dashboard/
+```
+
+Authentication required.
+
+The dashboard returns:
+
+* Total posts created
+* Total comments made
+* Total likes received on the user's posts
+* Total views received on the user's posts
+* Per-post likes
+* Per-post comments
+
+Each authenticated user can only access their own dashboard data.
+
+### Dashboard UI
+
+The dashboard is available at:
+
+```text
+http://127.0.0.1:8000/dashboard
+```
+
+The dashboard uses **Chart.js** to display:
+
+* Total Posts
+* Total Comments
+* Total Likes
+* Total Views
+* Likes and Comments per Post
+
+Dashboard data is loaded dynamically from the authenticated dashboard API.
+
+## Post View Tracking
+
+Post views are tracked automatically.
+
+Whenever a user successfully requests:
+
+```http
+GET /posts/{post_id}
+```
+
+the post's view count is incremented.
+
+The total views for a user's posts are displayed in the User Dashboard.
+
 ## Authorization
 
 The API implements ownership protection for posts.
@@ -309,6 +458,8 @@ The API returns:
 ```
 
 with an appropriate error message.
+
+Dashboard data is also protected using JWT authentication, ensuring users can only access their own activity statistics.
 
 ## Validation
 
@@ -350,6 +501,8 @@ Examples:
 * Unauthorized post modification
 * Duplicate like
 * Unlike without an existing like
+* Subscription limit reached
+* Missing active subscription
 
 ## Email Notifications
 
@@ -372,12 +525,15 @@ Database file:
 blog.db
 ```
 
-Main tables:
+Main tables include:
 
 * `users`
 * `posts`
+* `post_images`
 * `comments`
 * `likes`
+* `subscription_plans`
+* `billing_history`
 
 Relationships are configured using SQLAlchemy ORM.
 
@@ -393,16 +549,20 @@ Security-related features include:
 * Email credentials stored in environment variables
 * `.env` excluded from Git
 * Invalid JWT rejection
+* User-specific dashboard access
+* Subscription-based access control
 
 ## Testing
 
 The API was tested using Swagger UI and Postman.
-A Postman collection containing the API requests and error-handling tests is included in the repository.
+
+A Postman collection containing API requests and error-handling tests is included in the repository.
 
 Tested functionality includes:
 
 * User registration
-* Login
+* Login with username
+* Login with email
 * JWT authentication
 * Current-user endpoint
 * Public post access
@@ -410,6 +570,9 @@ Tested functionality includes:
 * Post update
 * Post deletion
 * Ownership restrictions
+* Multiple image uploads
+* Pagination
+* Post search
 * Public comments
 * Comment validation
 * Comment notifications
@@ -420,8 +583,14 @@ Tested functionality includes:
 * Authentication failures
 * Invalid JWT handling
 * Email notifications
-* Dependency installation
-  
+* Subscription plans
+* Current subscription
+* Subscription limit enforcement
+* User dashboard statistics
+* Dashboard JWT protection
+* Post view tracking
+* Chart.js dashboard visualization
+
 ### Postman Collection
 
 The Postman collection is available in the project root:
@@ -430,10 +599,14 @@ The Postman collection is available in the project root:
 
 It includes requests for:
 
-- Authentication
-- Post CRUD operations
-- Comments
-- Likes and unlikes
-- Duplicate-like validation
-- Ownership authorization
-- Authentication and validation errors
+* Authentication
+* Post CRUD operations
+* Image uploads
+* Pagination and search
+* Comments
+* Likes and unlikes
+* Duplicate-like validation
+* Ownership authorization
+* Subscription and billing APIs
+* Dashboard API
+* Authentication and validation errors
