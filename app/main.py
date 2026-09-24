@@ -16,6 +16,7 @@ from .routers import (
     notifications,
     dashboard as dashboard_router
 )
+from .routers import ai_support
 
 Base.metadata.create_all(bind=engine)
 
@@ -60,6 +61,7 @@ app.include_router(likes.router)
 app.include_router(subscriptions.router)
 app.include_router(notifications.router)
 app.include_router(dashboard_router.router)
+app.include_router(ai_support.router)
 
 # Root endpoint
 @app.get("/")

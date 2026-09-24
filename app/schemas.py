@@ -106,3 +106,12 @@ class NotificationResponse(BaseModel):
 
 class NotificationUnreadCount(BaseModel):
     unread_count: int
+
+class AISupportRequest(BaseModel):
+    message: str
+
+class AISupportResponse(BaseModel):
+    id: int
+    question: str
+    ai_response: str
+    created_at: datetime

@@ -77,6 +77,11 @@ class User(Base):
         cascade="all, delete-orphan"
     )
 
+    ai_support_chats = relationship(
+        "AISupportChat",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
 
 class Post(Base):
     __tablename__ = "posts"
@@ -290,4 +295,36 @@ class Notification(Base):
     user = relationship(
         "User",
         back_populates="notifications"
+    )
+
+class AISupportChat(Base):
+    __tablename__ = "ai_support_chats"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=False
+    )
+
+    question = Column(
+        Text,
+        nullable=False
+    )
+
+    ai_response = Column(
+        Text,
+        nullable=False
+    )
+
+    created_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False
+    )
+
+    user = relationship(
+        "User",
+        back_populates="ai_support_chats"
     )

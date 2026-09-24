@@ -25,6 +25,15 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
 
   // =========================
+  // AI Support Chat
+  // =========================
+
+  const [isAiOpen, setIsAiOpen] = useState(false);
+  const [aiMessage, setAiMessage] = useState("");
+  const [aiHistory, setAiHistory] = useState([]);
+  const [aiLoading, setAiLoading] = useState(false);
+
+  // =========================
   // Login
   // =========================
 
@@ -54,7 +63,10 @@ function App() {
         throw new Error(data.detail || "Login failed");
       }
 
-      localStorage.setItem("access_token", data.access_token);
+      localStorage.setItem(
+        "access_token",
+        data.access_token
+      );
 
       setToken(data.access_token);
 
@@ -78,6 +90,8 @@ function App() {
     setToken(null);
     setNotifications([]);
     setIsOpen(false);
+    setIsAiOpen(false);
+    setAiHistory([]);
   };
 
   // =========================
@@ -229,6 +243,117 @@ function App() {
 
     return () => clearInterval(interval);
   }, [token]);
+
+  // =========================
+  // Fetch AI Support History
+  // =========================
+
+  useEffect(() => {
+    if (!token) {
+      return;
+    }
+
+    const fetchAiHistory = async () => {
+      try {
+        const response = await fetch(
+          `${API_URL}/api/ai-support/history/`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (response.status === 401) {
+          handleLogout();
+          return;
+        }
+
+        if (!response.ok) {
+          throw new Error(
+            "Failed to fetch AI support history"
+          );
+        }
+
+        const data = await response.json();
+
+        if (Array.isArray(data)) {
+          setAiHistory(data);
+        }
+      } catch (error) {
+        console.error(
+          "Error fetching AI support history:",
+          error
+        );
+      }
+    };
+
+    fetchAiHistory();
+  }, [token]);
+
+  // =========================
+  // Send AI Support Message
+  // =========================
+
+  const sendAiMessage = async (event) => {
+    event.preventDefault();
+
+    const message = aiMessage.trim();
+
+    if (!message || aiLoading) {
+      return;
+    }
+
+    setAiLoading(true);
+
+    try {
+      const response = await fetch(
+        `${API_URL}/api/ai-support/`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            message: message,
+          }),
+        }
+      );
+
+      if (response.status === 401) {
+        handleLogout();
+        return;
+      }
+
+      if (!response.ok) {
+        const errorData = await response
+          .json()
+          .catch(() => ({}));
+
+        throw new Error(
+          errorData.detail ||
+            "Failed to get AI support response"
+        );
+      }
+
+      const data = await response.json();
+
+      setAiHistory((previousHistory) => [
+        ...previousHistory,
+        data,
+      ]);
+
+      setAiMessage("");
+    } catch (error) {
+      console.error(
+        "Error sending AI support message:",
+        error
+      );
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   // =========================
   // Mark All As Read
@@ -393,7 +518,7 @@ function App() {
   }
 
   // =========================
-  // Notification Center
+  // Authenticated Application
   // =========================
 
   return (
@@ -432,6 +557,10 @@ function App() {
           </button>
         </div>
       </nav>
+
+      {/* =========================
+          Notification Center
+          ========================= */}
 
       {isOpen && (
         <div className="notification-dropdown">
@@ -509,6 +638,127 @@ function App() {
               )
             )}
           </div>
+        </div>
+      )}
+
+      {/* =========================
+          AI Support Floating Button
+          ========================= */}
+
+      <button
+        className="ai-support-button"
+        onClick={() => setIsAiOpen(!isAiOpen)}
+        aria-label="AI Support"
+        title="AI Support"
+      >
+        💬
+      </button>
+
+      {/* =========================
+          AI Support Chat Popup
+          ========================= */}
+
+      {isAiOpen && (
+        <div className="ai-support-popup">
+          <div className="ai-support-header">
+            <div>
+              <h3>AI Support</h3>
+
+              <span>
+                How can I help you?
+              </span>
+            </div>
+
+            <button
+              className="ai-close-button"
+              onClick={() =>
+                setIsAiOpen(false)
+              }
+              aria-label="Close AI Support"
+            >
+              ×
+            </button>
+          </div>
+
+          <div className="ai-support-history">
+            {aiHistory.length === 0 ? (
+              <div className="ai-empty-state">
+                <div className="ai-empty-icon">
+                  🤖
+                </div>
+
+                <h4>
+                  Welcome to AI Support
+                </h4>
+
+                <p>
+                  Ask me about posts,
+                  subscriptions, billing,
+                  dashboard, or other features.
+                </p>
+              </div>
+            ) : (
+              aiHistory.map((chat) => (
+                <div
+                  key={chat.id}
+                  className="ai-chat-item"
+                >
+                  <div className="ai-user-message">
+                    <span className="ai-message-label">
+                      You
+                    </span>
+
+                    <p>
+                      {chat.question}
+                    </p>
+                  </div>
+
+                  <div className="ai-response-message">
+                    <span className="ai-message-label">
+                      AI Support
+                    </span>
+
+                    <p>
+                      {chat.ai_response}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
+
+            {aiLoading && (
+              <div className="ai-loading">
+                <span>
+                  AI is typing...
+                </span>
+              </div>
+            )}
+          </div>
+
+          <form
+            className="ai-support-input-area"
+            onSubmit={sendAiMessage}
+          >
+            <input
+              type="text"
+              value={aiMessage}
+              onChange={(event) =>
+                setAiMessage(event.target.value)
+              }
+              placeholder="Ask something..."
+              disabled={aiLoading}
+            />
+
+            <button
+              type="submit"
+              disabled={
+                aiLoading ||
+                !aiMessage.trim()
+              }
+            >
+              {aiLoading ? "..." : "Send"}
+            </button>
+          </form>
         </div>
       )}
     </div>
