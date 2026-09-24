@@ -85,6 +85,7 @@ class DashboardPostStats(BaseModel):
     title: str
     likes: int
     comments: int
+    views: int
 
 class DashboardResponse(BaseModel):
     total_posts: int

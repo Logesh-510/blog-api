@@ -6,7 +6,29 @@ import {
   MessageCircle,
   CreditCard,
 } from "lucide-react";
+
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+} from "chart.js";
+
+import { Bar } from "react-chartjs-2";
+
 import "./App.css";
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 const API_URL = "http://127.0.0.1:8000";
 
@@ -32,6 +54,13 @@ function App() {
   const [aiMessage, setAiMessage] = useState("");
   const [aiHistory, setAiHistory] = useState([]);
   const [aiLoading, setAiLoading] = useState(false);
+
+  // =========================
+  // User Dashboard
+  // =========================
+
+  const [dashboard, setDashboard] = useState(null);
+  const [dashboardLoading, setDashboardLoading] = useState(false);
 
   // =========================
   // Login
@@ -92,6 +121,7 @@ function App() {
     setIsOpen(false);
     setIsAiOpen(false);
     setAiHistory([]);
+    setDashboard(null);
   };
 
   // =========================
@@ -156,7 +186,9 @@ function App() {
 
     if (differenceInMinutes < 60) {
       return `${differenceInMinutes} ${
-        differenceInMinutes === 1 ? "minute" : "minutes"
+        differenceInMinutes === 1
+          ? "minute"
+          : "minutes"
       } ago`;
     }
 
@@ -166,7 +198,9 @@ function App() {
 
     if (differenceInHours < 24) {
       return `${differenceInHours} ${
-        differenceInHours === 1 ? "hour" : "hours"
+        differenceInHours === 1
+          ? "hour"
+          : "hours"
       } ago`;
     }
 
@@ -292,6 +326,55 @@ function App() {
   }, [token]);
 
   // =========================
+  // Fetch User Dashboard
+  // =========================
+
+  useEffect(() => {
+    if (!token) {
+      return;
+    }
+
+    const fetchDashboard = async () => {
+      setDashboardLoading(true);
+
+      try {
+        const response = await fetch(
+          `${API_URL}/user/dashboard/`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (response.status === 401) {
+          handleLogout();
+          return;
+        }
+
+        if (!response.ok) {
+          throw new Error(
+            "Failed to fetch dashboard"
+          );
+        }
+
+        const data = await response.json();
+
+        setDashboard(data);
+      } catch (error) {
+        console.error(
+          "Dashboard error:",
+          error
+        );
+      } finally {
+        setDashboardLoading(false);
+      }
+    };
+
+    fetchDashboard();
+  }, [token]);
+
+  // =========================
   // Send AI Support Message
   // =========================
 
@@ -382,13 +465,14 @@ function App() {
         );
       }
 
-      setNotifications((previousNotifications) =>
-        previousNotifications.map(
-          (notification) => ({
-            ...notification,
-            is_read: 1,
-          })
-        )
+      setNotifications(
+        (previousNotifications) =>
+          previousNotifications.map(
+            (notification) => ({
+              ...notification,
+              is_read: 1,
+            })
+          )
       );
     } catch (error) {
       console.error(
@@ -432,18 +516,19 @@ function App() {
         );
       }
 
-      setNotifications((previousNotifications) =>
-        previousNotifications.map((item) =>
-          item.id === notification.id
-            ? {
-                ...item,
-                is_read:
-                  notification.is_read === 0
-                    ? 1
-                    : 0,
-              }
-            : item
-        )
+      setNotifications(
+        (previousNotifications) =>
+          previousNotifications.map((item) =>
+            item.id === notification.id
+              ? {
+                  ...item,
+                  is_read:
+                    notification.is_read === 0
+                      ? 1
+                      : 0,
+                }
+              : item
+          )
       );
     } catch (error) {
       console.error(
@@ -451,6 +536,50 @@ function App() {
         error
       );
     }
+  };
+
+  // =========================
+  // Dashboard Chart Data
+  // =========================
+
+  const chartData = {
+    labels: ["Posts", "Comments", "Likes", "Views"],
+    datasets: [
+      {
+        label: "Activity",
+        data: [
+          dashboard?.total_posts ?? 0,
+          dashboard?.total_comments ?? 0,
+          dashboard?.total_likes_received ?? 0,
+          dashboard?.total_views ?? 0,
+        ],
+        backgroundColor: "#93C5FD",
+        borderColor: "#60A5FA",
+        borderWidth: 1,
+      },
+    ],
+  };
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: true,
+      },
+      title: {
+        display: true,
+        text: "Dashboard Activity",
+      },
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        ticks: {
+          precision: 0,
+        },
+      },
+    },
   };
 
   // =========================
@@ -464,7 +593,8 @@ function App() {
           <h2>Blog Management</h2>
 
           <p className="login-subtitle">
-            Sign in to view your notifications
+            Sign in to view your dashboard
+            and notifications
           </p>
 
           <form onSubmit={handleLogin}>
@@ -559,6 +689,143 @@ function App() {
       </nav>
 
       {/* =========================
+          Dashboard
+          ========================= */}
+
+      <main className="dashboard-container">
+        <div className="dashboard-header">
+          <div>
+            <h1>User Dashboard</h1>
+            <p>
+              Overview of your blog activity
+            </p>
+          </div>
+        </div>
+
+        {dashboardLoading ? (
+          <div className="dashboard-loading">
+            Loading dashboard...
+          </div>
+        ) : dashboard ? (
+          <>
+            <div className="dashboard-stats">
+              <div className="dashboard-card">
+                <div className="dashboard-card-icon">
+                  📝
+                </div>
+
+                <div>
+                  <span>Total Posts</span>
+                  <strong>
+                    {dashboard.total_posts ?? 0}
+                  </strong>
+                </div>
+              </div>
+
+              <div className="dashboard-card">
+                <div className="dashboard-card-icon">
+                  💬
+                </div>
+
+                <div>
+                  <span>Comments Made</span>
+                  <strong>
+                    {dashboard.total_comments ?? 0}
+                  </strong>
+                </div>
+              </div>
+
+              <div className="dashboard-card">
+                <div className="dashboard-card-icon">
+                  ❤️
+                </div>
+
+                <div>
+                  <span>Likes Received</span>
+                  <strong>
+                    {
+                      dashboard.total_likes_received ??
+                      0
+                    }
+                  </strong>
+                </div>
+              </div>
+
+              <div className="dashboard-card">
+                <div className="dashboard-card-icon">
+                  👁️
+                </div>
+
+                <div>
+                  <span>Total Views</span>
+                  <strong>
+                    {dashboard.total_views ?? 0}
+                  </strong>
+                </div>
+              </div>
+            </div>
+
+            <div className="dashboard-chart-card">
+              <h2>Blog Activity</h2>
+
+              <div className="dashboard-chart">
+                <Bar
+                  data={chartData}
+                  options={chartOptions}
+                />
+              </div>
+            </div>
+
+            {Array.isArray(dashboard.posts) &&
+              dashboard.posts.length > 0 && (
+                <div className="dashboard-posts-card">
+                  <h2>Your Posts</h2>
+
+                  <div className="dashboard-post-list">
+                    {dashboard.posts.map(
+                      (post) => (
+                        <div
+                          className="dashboard-post"
+                          key={post.post_id}
+                        >
+                          <div>
+                            <h3>
+                              {post.title}
+                            </h3>
+
+                            <span>
+                              Views:{" "}
+                              {post.views ?? 0}
+                            </span>
+                          </div>
+
+                          <div className="post-metrics">
+                            <span>
+                              💬{" "}
+                              {post.comments ??
+                                0}
+                            </span>
+
+                            <span>
+                              ❤️{" "}
+                              {post.likes ?? 0}
+                            </span>
+                          </div>
+                        </div>
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
+          </>
+        ) : (
+          <div className="dashboard-error">
+            Unable to load dashboard data.
+          </div>
+        )}
+      </main>
+
+      {/* =========================
           Notification Center
           ========================= */}
 
@@ -629,7 +896,8 @@ function App() {
                         </small>
                       </div>
 
-                      {notification.is_read === 0 && (
+                      {notification.is_read ===
+                        0 && (
                         <span className="unread-dot"></span>
                       )}
                     </div>
@@ -647,7 +915,9 @@ function App() {
 
       <button
         className="ai-support-button"
-        onClick={() => setIsAiOpen(!isAiOpen)}
+        onClick={() =>
+          setIsAiOpen(!isAiOpen)
+        }
         aria-label="AI Support"
         title="AI Support"
       >

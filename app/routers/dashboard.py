@@ -55,7 +55,8 @@ def get_dashboard(
                 post_id=post.id,
                 title=post.title,
                 likes=len(post.likes),
-                comments=len(post.comments)
+                comments=len(post.comments),
+                views=post.views
             )
         )
 

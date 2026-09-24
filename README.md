@@ -2,9 +2,9 @@
 
 A backend REST API for a mini blogging platform built with **FastAPI**, **SQLAlchemy**, and **SQLite**.
 
-The application provides JWT authentication, blog post management, comments, likes/unlikes, image uploads, pagination and search, subscription-based access control, billing history, email notifications, an in-app notification center, post view tracking, and a user dashboard with interactive analytics.
+The application provides JWT authentication, blog post management, comments, likes/unlikes, image uploads, pagination and search, subscription-based access control, billing history, email notifications, an in-app notification center, post view tracking, a user dashboard with interactive analytics, and an AI Support Chat for user assistance.
 
-A separate **React/Vite frontend** is also included for the In-App Notification Center.
+A separate **React/Vite frontend** is included for the **User Dashboard, In-App Notification Center, and AI Support Chat**.
 
 ---
 
@@ -93,13 +93,38 @@ A separate **React/Vite frontend** is also included for the In-App Notification 
 
 * User-specific dashboard
 * Total posts
-* Total comments
+* Total comments made
 * Total likes received
 * Total views
 * Per-post likes
 * Per-post comments
+* Per-post views
+* Interactive Blog Activity chart
 * Chart.js visualization
 * Responsive dashboard UI
+* JWT-protected dashboard data
+
+### AI Support Chat
+
+* Floating AI Support button accessible from the authenticated frontend
+* Interactive chat popup
+* User message input
+* AI response display
+* Scrollable conversation history
+* Persistent AI support history
+* JWT-protected AI Support API
+* User-specific AI chat history
+* Mocked/predefined support responses
+* FAQ assistance for blog posts
+* Subscription assistance
+* Billing assistance
+* Profile management assistance
+* Dashboard assistance
+* Comments and likes assistance
+* Notification assistance
+* Login and authentication assistance
+* General help and FAQ responses
+* Activity tracking using the database
 
 ### API & Validation
 
@@ -126,9 +151,10 @@ A separate **React/Vite frontend** is also included for the In-App Notification 
 | Python-dotenv    | Environment variable management |
 | SMTP             | Email notifications             |
 | Chart.js         | Dashboard data visualization    |
-| React            | Notification Center frontend    |
+| React            | Frontend user interface         |
 | Vite             | React development/build tool    |
-| Lucide React     | Notification UI icons           |
+| React Chart.js 2 | Chart.js integration with React |
+| Lucide React     | Frontend UI icons               |
 | Uvicorn          | ASGI server                     |
 | Swagger UI       | API testing and documentation   |
 | Postman          | API testing                     |
@@ -139,6 +165,7 @@ A separate **React/Vite frontend** is also included for the In-App Notification 
 
 ```text
 blog-api/
+
 │
 ├── app/
 │   ├── __init__.py
@@ -161,7 +188,8 @@ blog-api/
 │       ├── likes.py
 │       ├── subscriptions.py
 │       ├── dashboard.py
-│       └── notifications.py
+│       ├── notifications.py
+│       └── ai_support.py
 │
 ├── dashboard/
 │   └── dashboard.html
@@ -176,7 +204,8 @@ blog-api/
 │   ├── src/
 │   │   ├── App.jsx
 │   │   ├── App.css
-│   │   └── ...
+│   │   ├── index.css
+│   │   └── main.jsx
 │   ├── package.json
 │   ├── package-lock.json
 │   └── index.html
@@ -226,7 +255,7 @@ python -m pip install -r requirements.txt
 
 ## Frontend Installation
 
-The In-App Notification Center frontend is located inside:
+The React/Vite frontend is located inside:
 
 ```text
 blog-notification-frontend/
@@ -244,7 +273,13 @@ Install the Node.js dependencies:
 npm install
 ```
 
-The frontend uses **React**, **Vite**, and **Lucide React**.
+The frontend uses:
+
+* React
+* Vite
+* Chart.js
+* React Chart.js 2
+* Lucide React
 
 ---
 
@@ -254,13 +289,9 @@ Create a `.env` file in the project root:
 
 ```env
 EMAIL_HOST=smtp.gmail.com
-
 EMAIL_PORT=587
-
 EMAIL_USERNAME=your-email@gmail.com
-
 EMAIL_PASSWORD=your-gmail-app-password
-
 SECRET_KEY=your-secret-key
 ```
 
@@ -288,7 +319,7 @@ http://127.0.0.1:8000
 
 ---
 
-# Run the Notification Center Frontend
+# Run the React Frontend
 
 Open another terminal:
 
@@ -340,9 +371,12 @@ Swagger UI can be used to:
 * Manage subscriptions
 * View billing information
 * View dashboard statistics
+* Track post views
 * View notifications
 * Mark notifications as read/unread
 * Mark all notifications as read
+* Test AI Support
+* View AI Support history
 * Test validation and authorization errors
 
 OpenAPI JSON:
@@ -567,7 +601,7 @@ Invoices are generated and stored under:
 
 # User Dashboard
 
-The application provides a user dashboard for personal activity statistics and analytics.
+The application provides a user-specific dashboard for personal activity statistics and analytics.
 
 ## Dashboard API
 
@@ -580,37 +614,131 @@ Authentication required.
 The dashboard returns:
 
 * Total posts created
-* Total comments made
+* Total comments made by the authenticated user
 * Total likes received on the user's posts
 * Total views received on the user's posts
 * Per-post likes
 * Per-post comments
+* Per-post views
 
 Each authenticated user can only access their own dashboard data.
 
-## Dashboard UI
+## Dashboard Frontend
 
-The dashboard is available at:
+The dashboard is included in the React/Vite frontend.
+
+Frontend:
 
 ```text
-http://127.0.0.1:8000/dashboard
+http://localhost:5173
 ```
 
-The dashboard uses **Chart.js** to display:
+The dashboard displays:
 
 * Total Posts
-* Total Comments
-* Total Likes
+* Comments Made
+* Likes Received
 * Total Views
-* Likes and Comments per Post
+* Blog Activity chart
+* Individual post statistics
+
+The **Blog Activity** chart is implemented using **Chart.js** and displays:
+
+* Posts
+* Comments
+* Likes
+* Views
 
 Dashboard data is loaded dynamically from the authenticated dashboard API.
 
 ---
 
+# AI Support Chat
+
+The application includes an AI Support Chat to help users understand and use the blog platform.
+
+The current implementation uses a **mocked/predefined response system** for common questions and stores user conversations in the database.
+
+## AI Support API
+
+### Send a Support Message
+
+```http
+POST /api/ai-support/
+```
+
+Authentication required.
+
+Example request:
+
+```json
+{
+  "message": "How do I create a post?"
+}
+```
+
+The endpoint returns an AI Support response.
+
+### View AI Support History
+
+```http
+GET /api/ai-support/history/
+```
+
+Authentication required.
+
+Returns the authenticated user's previous AI Support conversations.
+
+## AI Support Topics
+
+The support system provides predefined assistance for:
+
+* Creating posts
+* Editing posts
+* Deleting posts
+* Subscriptions
+* Billing
+* Profile management
+* Dashboard analytics
+* Comments
+* Likes
+* Notifications
+* Login and authentication
+* Registration
+* General FAQs
+
+## AI Support Frontend
+
+The AI Support Chat is available through a floating button in the React frontend.
+
+Features include:
+
+* Floating AI Support button
+* Chat popup
+* User message input
+* AI response display
+* Scrollable chat history
+* Loading state
+* Persistent conversation history
+* JWT authentication
+
+The frontend communicates with:
+
+```text
+POST /api/ai-support/
+```
+
+and:
+
+```text
+GET /api/ai-support/history/
+```
+
+---
+
 # In-App Notification Center
 
-The project includes a separate React/Vite frontend for an interactive notification center.
+The project includes an interactive React/Vite notification center.
 
 Frontend URL:
 
@@ -727,15 +855,25 @@ The flow is:
 
 ```text
 React Frontend
+
       |
+
       | Every 10 seconds
+
       v
+
 FastAPI Notification API
+
       |
+
       v
+
 SQLite Database
+
       |
+
       v
+
 Updated Notifications
 ```
 
@@ -762,6 +900,24 @@ Notifications are user-specific and protected using JWT authentication.
 
 ---
 
+# AI Support Database Model
+
+AI Support conversations are stored for authenticated users.
+
+The AI Support chat model stores:
+
+| Field         | Description                     |
+| ------------- | ------------------------------- |
+| `id`          | Unique chat record ID           |
+| `user_id`     | User who asked the question     |
+| `question`    | User's support question         |
+| `ai_response` | Generated/mock support response |
+| `created_at`  | Conversation timestamp          |
+
+AI Support history is user-specific and protected using JWT authentication.
+
+---
+
 # Post View Tracking
 
 Post views are tracked automatically.
@@ -775,6 +931,8 @@ GET /posts/{post_id}
 the post's view count is incremented.
 
 The total views for a user's posts are displayed in the User Dashboard.
+
+Per-post view statistics are also displayed in the dashboard.
 
 ---
 
@@ -795,9 +953,13 @@ The API returns:
 
 with an appropriate error message.
 
-Dashboard and notification data are also protected using JWT authentication.
+Dashboard, notification, and AI Support data are also protected using JWT authentication.
 
-Users can only access their own dashboard statistics and notifications.
+Users can only access their own:
+
+* Dashboard statistics
+* Notifications
+* AI Support history
 
 ---
 
@@ -846,6 +1008,7 @@ Examples include:
 * Subscription limit reached
 * Missing active subscription
 * Unauthorized notification access
+* Unauthorized AI Support access
 
 ---
 
@@ -864,12 +1027,17 @@ Email notifications and in-app notifications work independently:
 
 ```text
 Comment / Like / Subscription Action
+
              |
+
        +-----+-----+
+
        |           |
+
        v           v
-   Email        In-App
-Notification   Notification
+
+    Email       In-App
+ Notification  Notification
 ```
 
 ---
@@ -894,6 +1062,7 @@ Main tables include:
 * `subscription_plans`
 * `billing_history`
 * `notifications`
+* `ai_support_chats`
 
 Relationships are configured using SQLAlchemy ORM.
 
@@ -939,8 +1108,13 @@ Tested functionality includes:
 * Invoice generation
 * User dashboard statistics
 * Dashboard JWT protection
+* Per-post dashboard statistics
 * Post view tracking
 * Chart.js dashboard visualization
+* AI Support message requests
+* AI Support predefined responses
+* AI Support history
+* AI Support JWT protection
 
 ## Notification Center Testing
 
@@ -963,19 +1137,61 @@ The following notification features were tested successfully:
 * Notification type icons
 * Notification type labels
 
+## User Dashboard Testing
+
+The following dashboard features were tested successfully:
+
+* Dashboard authentication
+* User-specific dashboard data
+* Total posts
+* Comments made
+* Likes received
+* Total views
+* Per-post views
+* Per-post comments
+* Per-post likes
+* Chart.js visualization
+* Responsive dashboard layout
+
+## AI Support Testing
+
+The following AI Support features were tested successfully:
+
+* AI Support floating button
+* AI Support popup
+* User question submission
+* AI response display
+* Loading state
+* Chat history
+* History persistence after refresh
+* Create post FAQ
+* Subscription FAQ
+* Dashboard FAQ
+* Authentication protection
+* User-specific chat history
+
 ## Frontend Testing
 
-The React notification frontend was tested for:
+The React frontend was tested for:
 
 * Login screen
 * Successful authentication
 * Logout
+* User Dashboard
+* Dashboard statistics
+* Blog Activity chart
+* Per-post dashboard statistics
 * Notification dropdown
 * Unread badge
 * Read/unread state
 * Read All functionality
 * Automatic notification refresh without page refresh
-* Mobile responsive layout
+* AI Support floating button
+* AI Support chat popup
+* AI message submission
+* AI response display
+* AI history persistence
+* Responsive mobile layout
 
 ---
 
@@ -1000,6 +1216,8 @@ It includes requests for:
 * Subscription and billing APIs
 * Dashboard API
 * Notification APIs
+* AI Support API
+* AI Support history
 * Authentication errors
 * Validation errors
 
@@ -1019,6 +1237,7 @@ Security-related features include:
 * Invalid JWT rejection
 * User-specific dashboard access
 * User-specific notification access
+* User-specific AI Support history
 * Subscription-based access control
 * Duplicate-like prevention
 
@@ -1050,7 +1269,7 @@ Swagger:
 http://127.0.0.1:8000/docs
 ```
 
-### Terminal 2 — React Notification Center
+### Terminal 2 — React Frontend
 
 ```powershell
 cd C:\Users\Welcome\blog-api\blog-notification-frontend
@@ -1066,6 +1285,14 @@ Frontend:
 http://localhost:5173
 ```
 
+The React frontend provides:
+
+* User Dashboard
+* Blog Activity Chart
+* In-App Notification Center
+* AI Support Chat
+* JWT-based authentication
+
 ---
 
 # Submission Evidence
@@ -1078,8 +1305,15 @@ The following screenshots were captured during testing:
 4. Mark all notifications as read
 5. Automatic notification refresh without browser refresh
 6. Mobile responsive notification UI
+7. User Dashboard
+8. Dashboard statistics
+9. Blog Activity Chart
+10. Per-post dashboard statistics
+11. AI Support Chat
+12. AI Support responses
+13. AI Support history persistence
 
-The screenshots demonstrate the major frontend notification requirements and responsive behavior.
+The screenshots demonstrate the major frontend, dashboard, AI Support, notification, and responsive UI requirements.
 
 ---
 
@@ -1094,11 +1328,15 @@ Repository:
 The repository contains:
 
 * FastAPI backend
-* React notification frontend
+* React/Vite frontend
 * Database models
 * API routers
 * Notification service
-* Dashboard
+* Email notification service
+* User Dashboard
+* AI Support Chat
+* Notification Center
+* Chart.js visualization
 * Requirements
 * Postman collection
 * README documentation
@@ -1107,9 +1345,38 @@ The repository contains:
 
 # Conclusion
 
-The Blog Management API provides a complete mini blogging platform with authentication, post CRUD operations, ownership authorization, comments, likes/unlikes, image uploads, subscriptions, billing history, email notifications, post view tracking, and a user dashboard.
+The Blog Management API provides a complete mini blogging platform with:
 
-The project also includes an interactive **In-App Notification Center** with:
+* JWT authentication
+* User registration and login
+* Post CRUD operations
+* Ownership authorization
+* Comments
+* Likes/unlikes
+* Multiple image uploads
+* Pagination and search
+* Subscription plans
+* Billing history
+* Invoice generation
+* Email notifications
+* In-app notifications
+* Post view tracking
+* User dashboard analytics
+* Chart.js visualization
+* AI Support Chat
+
+The project also includes an interactive **React/Vite frontend** containing:
+
+* User Dashboard
+* Blog Activity Chart
+* In-App Notification Center
+* AI Support Chat
+* JWT-based authentication
+* Responsive UI
+
+The **User Dashboard** provides authenticated users with personal activity statistics including posts, comments, likes, and views.
+
+The **In-App Notification Center** provides:
 
 * Like notifications
 * Comment notifications
@@ -1120,6 +1387,16 @@ The project also includes an interactive **In-App Notification Center** with:
 * Automatic notification refresh
 * Notification timestamps
 * Responsive React UI
-* JWT-based authentication
+
+The **AI Support Chat** provides:
+
+* User assistance
+* FAQ responses
+* Post management guidance
+* Subscription and billing assistance
+* Dashboard assistance
+* Notification assistance
+* Persistent conversation history
+* User-specific authenticated chat history
 
 The backend APIs are documented through Swagger/OpenAPI, and the project has been tested using Swagger UI, Postman, and the React frontend.
