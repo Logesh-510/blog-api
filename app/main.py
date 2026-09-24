@@ -13,6 +13,7 @@ from .routers import (
     comments,
     likes,
     subscriptions,
+    notifications,
     dashboard as dashboard_router
 )
 
@@ -57,6 +58,7 @@ app.include_router(posts.router)
 app.include_router(comments.router)
 app.include_router(likes.router)
 app.include_router(subscriptions.router)
+app.include_router(notifications.router)
 app.include_router(dashboard_router.router)
 
 # Root endpoint

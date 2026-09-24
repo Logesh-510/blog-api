@@ -1,0 +1,435 @@
+/* =========================
+   Login Page
+   ========================= */
+
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f4f6f8;
+}
+
+.login-card {
+  width: 380px;
+  background: white;
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+}
+
+.login-card h2 {
+  margin: 0 0 8px;
+  text-align: center;
+  color: #111827;
+}
+
+.login-subtitle {
+  margin: 0 0 25px;
+  text-align: center;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.form-group {
+  margin-bottom: 18px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 7px;
+  color: #374151;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 7px;
+  font-size: 14px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.form-group input:focus {
+  border-color: #2563eb;
+}
+
+.login-button {
+  width: 100%;
+  border: none;
+  background: #2563eb;
+  color: white;
+  padding: 11px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.login-button:hover {
+  background: #1d4ed8;
+}
+
+.login-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.login-error {
+  margin: 0 0 15px;
+  color: #dc2626;
+  font-size: 13px;
+}
+
+
+/* =========================
+   Navbar
+   ========================= */
+
+.navbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logout-button {
+  border: none;
+  background: #374151;
+  color: white;
+  padding: 7px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.logout-button:hover {
+  background: #4b5563;
+}
+
+
+/* =========================
+   Notification Button
+   ========================= */
+
+.notification-button {
+  position: relative;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 8px;
+  border-radius: 50%;
+}
+
+.notification-button:hover {
+  background: #f3f4f6;
+}
+
+
+/* =========================
+   Notification Badge
+   ========================= */
+
+.notification-badge {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+
+  min-width: 18px;
+  height: 18px;
+
+  padding: 0 5px;
+
+  border-radius: 999px;
+
+  background: #dc2626;
+  color: white;
+
+  font-size: 11px;
+  font-weight: bold;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  box-sizing: border-box;
+}
+
+
+/* =========================
+   Notification Dropdown
+   ========================= */
+
+.notification-dropdown {
+  position: absolute;
+
+  top: 65px;
+  right: 25px;
+
+  width: 400px;
+  max-width: calc(100vw - 30px);
+
+  background: white;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+
+  overflow: hidden;
+
+  z-index: 1000;
+}
+
+
+/* =========================
+   Notification Header
+   ========================= */
+
+.notification-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 16px 18px;
+
+  border-bottom: 1px solid #e5e7eb;
+
+  background: #ffffff;
+}
+
+.notification-header h3 {
+  margin: 0;
+
+  font-size: 17px;
+  color: #111827;
+}
+
+.read-all-button {
+  border: none;
+  background: transparent;
+
+  color: #2563eb;
+
+  cursor: pointer;
+
+  display: flex;
+  align-items: center;
+  gap: 5px;
+
+  font-size: 13px;
+  font-weight: 600;
+
+  padding: 5px;
+}
+
+.read-all-button:hover {
+  color: #1d4ed8;
+}
+
+
+/* =========================
+   Notification List
+   ========================= */
+
+.notification-list {
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+
+/* =========================
+   Notification Item
+   ========================= */
+
+.notification-item {
+  position: relative;
+
+  padding: 15px 18px;
+
+  border-bottom: 1px solid #f1f5f9;
+
+  cursor: pointer;
+
+  transition: background 0.2s ease;
+}
+
+.notification-item:last-child {
+  border-bottom: none;
+}
+
+.notification-item:hover {
+  background: #f3f4f6;
+}
+
+
+/* =========================
+   Unread Notification
+   ========================= */
+
+.notification-item.unread {
+  background: #eff6ff;
+
+  border-left: 4px solid #2563eb;
+}
+
+.notification-item.unread:hover {
+  background: #eaf2ff;
+}
+
+
+/* =========================
+   Notification Content
+   ========================= */
+
+.notification-content {
+  display: flex;
+  align-items: flex-start;
+
+  gap: 12px;
+}
+
+.notification-content > div:last-child {
+  flex: 1;
+  min-width: 0;
+}
+
+
+/* =========================
+   Notification Icon
+   ========================= */
+
+.notification-icon {
+  min-width: 36px;
+  width: 36px;
+  height: 36px;
+
+  border-radius: 50%;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: #f3f4f6;
+  color: #374151;
+
+  flex-shrink: 0;
+}
+
+.notification-item.unread .notification-icon {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+
+/* =========================
+   Notification Text
+   ========================= */
+
+.notification-item p {
+  margin: 0 0 6px;
+
+  color: #374151;
+
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.notification-item.unread p {
+  color: #111827;
+  font-weight: 600;
+}
+
+.notification-item small {
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+
+/* =========================
+   Empty Notifications
+   ========================= */
+
+.empty-notifications {
+  padding: 35px 20px;
+
+  text-align: center;
+
+  color: #9ca3af;
+
+  font-size: 14px;
+}
+
+
+/* =========================
+   Mobile Responsive
+   ========================= */
+
+@media (max-width: 500px) {
+
+  .login-card {
+    width: calc(100vw - 30px);
+  }
+
+  .notification-dropdown {
+    top: 60px;
+    right: 15px;
+
+    width: calc(100vw - 30px);
+    max-width: none;
+  }
+
+  .notification-header {
+    padding: 14px 15px;
+  }
+
+  .notification-item {
+    padding: 14px 15px;
+  }
+}
+
+/* Notification type label */
+.notification-type {
+  display: inline-block;
+  margin-bottom: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #6b7280;
+}
+
+.notification-item.unread .notification-type {
+  color: #2563eb;
+}
+
+/* Notification text */
+.notification-text {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Unread indicator */
+.unread-dot {
+  width: 8px;
+  height: 8px;
+  background: #2563eb;
+  border-radius: 50%;
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+
+/* Notification count */
+.notification-count {
+  display: block;
+  margin-top: 2px;
+  color: #9ca3af;
+  font-size: 11px;
+}

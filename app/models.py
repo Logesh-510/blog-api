@@ -71,6 +71,12 @@ class User(Base):
         cascade="all, delete-orphan"
     )
 
+    notifications = relationship(
+        "Notification",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+
 
 class Post(Base):
     __tablename__ = "posts"
@@ -111,11 +117,13 @@ class PostImage(Base):
     __tablename__ = "post_images"
 
     id = Column(Integer, primary_key=True, index=True)
+
     post_id = Column(
         Integer,
         ForeignKey("posts.id"),
         nullable=False
     )
+
     image_path = Column(
         String(500),
         nullable=False
@@ -131,17 +139,21 @@ class Comment(Base):
     __tablename__ = "comments"
 
     id = Column(Integer, primary_key=True, index=True)
+
     post_id = Column(
         Integer,
         ForeignKey("posts.id"),
         nullable=False
     )
+
     user_id = Column(
         Integer,
         ForeignKey("users.id"),
         nullable=False
     )
+
     text = Column(Text, nullable=False)
+
     created_at = Column(
         DateTime,
         default=datetime.utcnow,
@@ -163,11 +175,13 @@ class Like(Base):
     __tablename__ = "likes"
 
     id = Column(Integer, primary_key=True, index=True)
+
     post_id = Column(
         Integer,
         ForeignKey("posts.id"),
         nullable=False
     )
+
     user_id = Column(
         Integer,
         ForeignKey("users.id"),
@@ -195,28 +209,34 @@ class BillingHistory(Base):
     __tablename__ = "billing_history"
 
     id = Column(Integer, primary_key=True, index=True)
+
     user_id = Column(
         Integer,
         ForeignKey("users.id"),
         nullable=False
     )
+
     subscription_plan_id = Column(
         Integer,
         ForeignKey("subscription_plans.id"),
         nullable=False
     )
+
     price = Column(Float, nullable=False)
     start_date = Column(DateTime, nullable=False)
     end_date = Column(DateTime, nullable=False)
+
     transaction_id = Column(
         String(100),
         unique=True,
         nullable=False
     )
+
     invoice_path = Column(
         String(500),
         nullable=True
     )
+
     created_at = Column(
         DateTime,
         default=datetime.utcnow,
@@ -231,4 +251,43 @@ class BillingHistory(Base):
     subscription_plan = relationship(
         "SubscriptionPlan",
         back_populates="billing_history"
+    )
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=False
+    )
+
+    message = Column(
+        Text,
+        nullable=False
+    )
+
+    notification_type = Column(
+        String(50),
+        nullable=False
+    )
+
+    is_read = Column(
+        Integer,
+        default=0,
+        nullable=False
+    )
+
+    created_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False
+    )
+
+    user = relationship(
+        "User",
+        back_populates="notifications"
     )

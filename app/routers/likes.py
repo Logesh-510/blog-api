@@ -3,7 +3,13 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..dependencies import get_current_user
-from ..models import Like, Post, SubscriptionPlan, User
+from ..models import (
+    Like,
+    Notification,
+    Post,
+    SubscriptionPlan,
+    User
+)
 from ..schemas import LikeResponse
 from ..services.notification_service import send_like_notification
 
@@ -85,6 +91,18 @@ def like_post(
     db.add(new_like)
     db.commit()
     db.refresh(new_like)
+
+    # Create in-app notification for post owner
+    if post.author_id != current_user.id:
+        new_notification = Notification(
+            user_id=post.author_id,
+            message=f"{current_user.username} liked your post '{post.title}'.",
+            notification_type="like",
+            is_read=0
+        )
+
+        db.add(new_notification)
+        db.commit()
 
     # Send notification in the background
     background_tasks.add_task(

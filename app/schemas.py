@@ -92,3 +92,17 @@ class DashboardResponse(BaseModel):
     total_likes_received: int
     total_views: int
     posts: list[DashboardPostStats]
+
+class NotificationResponse(BaseModel):
+    id: int
+    user_id: int
+    message: str
+    notification_type: str
+    is_read: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class NotificationUnreadCount(BaseModel):
+    unread_count: int

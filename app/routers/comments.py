@@ -5,7 +5,10 @@ from ..database import get_db
 from ..dependencies import get_current_user
 from ..models import Comment, Post, SubscriptionPlan, User
 from ..schemas import CommentCreate, CommentResponse
-from ..services.notification_service import send_comment_notification
+from ..services.notification_service import (
+    create_notification,
+    send_comment_notification
+)
 
 router = APIRouter(
     prefix="/posts/{post_id}/comments",
@@ -73,6 +76,14 @@ def create_comment(
     db.add(new_comment)
     db.commit()
     db.refresh(new_comment)
+
+    create_notification(
+        db=db,
+        user_id=post.author_id,
+        message=f"{current_user.username} commented on your post '{post.title}'",
+        notification_type="comment"
+    )
+    
 
     background_tasks.add_task(
         send_comment_notification,

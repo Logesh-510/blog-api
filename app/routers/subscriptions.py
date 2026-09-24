@@ -7,7 +7,7 @@ from ..database import get_db
 from ..invoice import generate_invoice
 from ..dependencies import get_current_user
 from ..models import BillingHistory, SubscriptionPlan, User
-
+from ..services.notification_service import create_notification
 
 router = APIRouter(
     prefix="/subscriptions",
@@ -90,6 +90,7 @@ def subscribe_to_plan(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    is_renewal = current_user.subscription_plan_id is not None
     plan = db.query(SubscriptionPlan).filter(
         SubscriptionPlan.id == plan_id
     ).first()
@@ -136,8 +137,21 @@ def subscribe_to_plan(
     db.commit()
     db.refresh(billing)
 
+    create_notification(
+        db=db,
+        user_id=current_user.id,
+        message=(
+            f"Your {plan.name} subscription has been "
+            f"{'renewed' if is_renewal else 'activated'} successfully."
+        ),
+        notification_type="subscription"
+    )
+    
     return {
-        "message": f"{plan.name} subscription activated successfully.",
+        "message": (
+            f"{plan.name} subscription "
+            f"{'renewed' if is_renewal else 'activated'} successfully."
+        ),
         "subscription": {
             "plan": plan.name,
             "price": plan.price,

@@ -1,7 +1,28 @@
 from datetime import datetime
 
-from .email_service import send_email
+from sqlalchemy.orm import Session
 
+from .email_service import send_email
+from ..models import Notification
+
+def create_notification(
+    db: Session,
+    user_id: int,
+    message: str,
+    notification_type: str
+):
+    notification = Notification(
+        user_id=user_id,
+        message=message,
+        notification_type=notification_type,
+        is_read=0
+    )
+
+    db.add(notification)
+    db.commit()
+    db.refresh(notification)
+
+    return notification
 
 def send_comment_notification(
     recipient_email: str,
