@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { useAuth0 } from "@auth0/auth0-react";
+
 import {
   Bell,
   CheckCheck,
@@ -33,6 +35,19 @@ ChartJS.register(
 const API_URL = "http://127.0.0.1:8000";
 
 function App() {
+  const {
+    loginWithRedirect,
+    logout: auth0Logout,
+    isAuthenticated,
+    isLoading: auth0Loading,
+    user,
+    getIdTokenClaims,
+  } = useAuth0();
+
+  // =========================
+  // Authentication
+  // =========================
+
   const [token, setToken] = useState(
     localStorage.getItem("access_token")
   );
@@ -40,11 +55,15 @@ function App() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
-  const [notifications, setNotifications] = useState([]);
-  const [isOpen, setIsOpen] = useState(false);
-
   const [loginError, setLoginError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  // =========================
+  // Notifications
+  // =========================
+
+  const [notifications, setNotifications] = useState([]);
+  const [isOpen, setIsOpen] = useState(false);
 
   // =========================
   // AI Support Chat
@@ -63,7 +82,76 @@ function App() {
   const [dashboardLoading, setDashboardLoading] = useState(false);
 
   // =========================
-  // Login
+  // Auth0 Login Detection
+  // =========================
+
+  useEffect(() => {
+    const authenticateWithBackend = async () => {
+      if (auth0Loading || !isAuthenticated || token) {
+        return;
+      }
+
+      try {
+        // Get the Auth0 ID token
+        const claims = await getIdTokenClaims();
+
+        if (!claims || !claims.__raw) {
+          console.error("Auth0 ID token not found");
+          return;
+        }
+
+        const idToken = claims.__raw;
+
+        // Exchange Auth0 ID token for our FastAPI JWT
+        const response = await fetch(
+          `${API_URL}/auth/auth0-login`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type":
+                "application/x-www-form-urlencoded",
+            },
+            body: new URLSearchParams({
+              id_token: idToken,
+            }),
+          }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          console.error(
+            "Backend Auth0 login failed:",
+            data
+          );
+          return;
+        }
+
+        // Store our FastAPI JWT
+        localStorage.setItem(
+          "access_token",
+          data.access_token
+        );
+
+        setToken(data.access_token);
+      } catch (error) {
+        console.error(
+          "Auth0 backend authentication error:",
+          error
+        );
+      }
+    };
+
+    authenticateWithBackend();
+  }, [
+    auth0Loading,
+    isAuthenticated,
+    token,
+    getIdTokenClaims,
+  ]);
+
+  // =========================
+  // Normal Username/Password Login
   // =========================
 
   const handleLogin = async (event) => {
@@ -78,18 +166,24 @@ function App() {
       formData.append("username", username);
       formData.append("password", password);
 
-      const response = await fetch(`${API_URL}/auth/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: formData,
-      });
+      const response = await fetch(
+        `${API_URL}/auth/login`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/x-www-form-urlencoded",
+          },
+          body: formData,
+        }
+      );
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.detail || "Login failed");
+        throw new Error(
+          data.detail || "Login failed"
+        );
       }
 
       localStorage.setItem(
@@ -103,7 +197,10 @@ function App() {
       setPassword("");
     } catch (error) {
       console.error("Login error:", error);
-      setLoginError(error.message);
+
+      setLoginError(
+        error.message || "Login failed"
+      );
     } finally {
       setIsLoading(false);
     }
@@ -122,6 +219,16 @@ function App() {
     setIsAiOpen(false);
     setAiHistory([]);
     setDashboard(null);
+
+    if (isAuthenticated) {
+      auth0Logout({
+        logoutParams: {
+          returnTo: window.location.origin,
+        },
+      });
+
+      return;
+    }
   };
 
   // =========================
@@ -543,7 +650,12 @@ function App() {
   // =========================
 
   const chartData = {
-    labels: ["Posts", "Comments", "Likes", "Views"],
+    labels: [
+      "Posts",
+      "Comments",
+      "Likes",
+      "Views",
+    ],
     datasets: [
       {
         label: "Activity",
@@ -581,6 +693,69 @@ function App() {
       },
     },
   };
+
+  // =========================
+  // Auth0 Loading Screen
+  // =========================
+
+  if (auth0Loading) {
+    return (
+      <div className="login-page">
+        <div className="login-card">
+          <h2>Blog Management</h2>
+
+          <p className="login-subtitle">
+            Checking authentication...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // =========================
+  // Auth0 Authenticated But
+  // No FastAPI Token
+  // =========================
+
+  if (isAuthenticated && !token) {
+    return (
+      <div className="login-page">
+        <div className="login-card">
+          <h2>Blog Management</h2>
+
+          <p className="login-subtitle">
+            Social authentication successful.
+          </p>
+
+          {user?.name && (
+            <p>
+              Welcome, {user.name}
+            </p>
+          )}
+
+          <p className="login-subtitle">
+            Your Auth0 account is authenticated,
+            but the application backend still
+            requires a Blog API login token.
+          </p>
+
+          <button
+            type="button"
+            className="login-button"
+            onClick={() => {
+              auth0Logout({
+                logoutParams: {
+                  returnTo: window.location.origin,
+                },
+              });
+            }}
+          >
+            Continue
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // =========================
   // Login Screen
@@ -641,6 +816,34 @@ function App() {
                 ? "Signing in..."
                 : "Sign In"}
             </button>
+
+            <hr
+              style={{
+                margin: "20px 0",
+              }}
+            />
+
+            <button
+              type="button"
+              className="social-login-btn google-login-btn"
+              onClick={() => loginWithRedirect()}
+            >
+              Continue with Google
+            </button>
+
+            <button
+              type="button"
+              className="social-login-btn facebook-login-btn"
+              onClick={() =>
+                loginWithRedirect({
+                  authorizationParams: {
+                    connection: "facebook",
+                  },
+                })
+              }
+            >
+              Continue with Facebook
+            </button>
           </form>
         </div>
       </div>
@@ -659,7 +862,9 @@ function App() {
         <div className="navbar-actions">
           <button
             className="notification-button"
-            onClick={() => setIsOpen(!isOpen)}
+            onClick={() =>
+              setIsOpen(!isOpen)
+            }
             aria-label="Notifications"
           >
             <Bell size={24} />
@@ -688,14 +893,11 @@ function App() {
         </div>
       </nav>
 
-      {/* =========================
-          Dashboard
-          ========================= */}
-
       <main className="dashboard-container">
         <div className="dashboard-header">
           <div>
             <h1>User Dashboard</h1>
+
             <p>
               Overview of your blog activity
             </p>
@@ -716,6 +918,7 @@ function App() {
 
                 <div>
                   <span>Total Posts</span>
+
                   <strong>
                     {dashboard.total_posts ?? 0}
                   </strong>
@@ -729,6 +932,7 @@ function App() {
 
                 <div>
                   <span>Comments Made</span>
+
                   <strong>
                     {dashboard.total_comments ?? 0}
                   </strong>
@@ -742,11 +946,10 @@ function App() {
 
                 <div>
                   <span>Likes Received</span>
+
                   <strong>
-                    {
-                      dashboard.total_likes_received ??
-                      0
-                    }
+                    {dashboard.total_likes_received ??
+                      0}
                   </strong>
                 </div>
               </div>
@@ -758,6 +961,7 @@ function App() {
 
                 <div>
                   <span>Total Views</span>
+
                   <strong>
                     {dashboard.total_views ?? 0}
                   </strong>
@@ -776,7 +980,9 @@ function App() {
               </div>
             </div>
 
-            {Array.isArray(dashboard.posts) &&
+            {Array.isArray(
+              dashboard.posts
+            ) &&
               dashboard.posts.length > 0 && (
                 <div className="dashboard-posts-card">
                   <h2>Your Posts</h2>
@@ -825,10 +1031,6 @@ function App() {
         )}
       </main>
 
-      {/* =========================
-          Notification Center
-          ========================= */}
-
       {isOpen && (
         <div className="notification-dropdown">
           <div className="notification-header">
@@ -853,7 +1055,10 @@ function App() {
             {notifications.length === 0 ? (
               <div className="empty-notifications">
                 <Bell size={30} />
-                <p>No notifications</p>
+
+                <p>
+                  No notifications
+                </p>
               </div>
             ) : (
               notifications.map(
@@ -909,10 +1114,6 @@ function App() {
         </div>
       )}
 
-      {/* =========================
-          AI Support Floating Button
-          ========================= */}
-
       <button
         className="ai-support-button"
         onClick={() =>
@@ -923,10 +1124,6 @@ function App() {
       >
         💬
       </button>
-
-      {/* =========================
-          AI Support Chat Popup
-          ========================= */}
 
       {isAiOpen && (
         <div className="ai-support-popup">
