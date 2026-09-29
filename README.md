@@ -2,7 +2,7 @@
 
 A full-stack mini blogging platform built with **FastAPI**, **SQLAlchemy**, **SQLite**, and **React/Vite**.
 
-The application includes authentication, blog posts, comments, likes, subscriptions, notifications, user analytics, and an AI Support Chat.
+The application includes authentication, blog posts, comments, likes, subscriptions, notifications, user analytics, AI Support Chat, and scheduled blog publishing.
 
 ---
 
@@ -29,6 +29,39 @@ The application includes authentication, blog posts, comments, likes, subscripti
 * Comments
 * Like/unlike
 * Duplicate-like prevention
+
+### Scheduled Blog Publishing
+
+Authors can choose how a blog post should be published:
+
+* Publish immediately
+* Save as draft
+* Schedule for future publishing
+
+Scheduled publishing workflow:
+
+```text
+Draft
+  ↓
+Scheduled
+  ↓
+Automatic Scheduler
+  ↓
+Published
+```
+
+Features include:
+
+* Future date and time scheduling
+* Scheduled post status
+* Automatic publishing using APScheduler
+* Automatic `published_at` timestamp
+* `scheduled_at` cleared after publishing
+* Scheduled posts hidden from public post listings until published
+* Validation to prevent scheduling in the past
+* Draft posts cannot have a scheduled datetime
+* Immediate posts cannot have a scheduled datetime
+* Scheduler checks for due posts every 10 seconds
 
 ### Subscription & Billing
 
@@ -68,22 +101,23 @@ The application includes authentication, blog posts, comments, likes, subscripti
 
 ## Tech Stack
 
-| Technology        | Purpose               |
-| ----------------- | --------------------- |
-| Python            | Programming           |
-| FastAPI           | Backend API           |
-| SQLAlchemy        | ORM                   |
-| SQLite            | Database              |
-| Pydantic          | Validation            |
-| JWT               | Authentication        |
-| Auth0             | Social authentication |
-| Google / Facebook | Social login          |
-| React             | Frontend              |
-| Vite              | Frontend tooling      |
-| Chart.js          | Dashboard charts      |
-| Passlib + bcrypt  | Password hashing      |
-| SMTP              | Email notifications   |
-| Postman / Swagger | API testing           |
+| Technology        | Purpose                   |
+| ----------------- | ------------------------- |
+| Python            | Programming               |
+| FastAPI           | Backend API               |
+| SQLAlchemy        | ORM                       |
+| SQLite            | Database                  |
+| Pydantic          | Validation                |
+| JWT               | Authentication            |
+| Auth0             | Social authentication     |
+| Google / Facebook | Social login              |
+| React             | Frontend                  |
+| Vite              | Frontend tooling          |
+| Chart.js          | Dashboard charts          |
+| Passlib + bcrypt  | Password hashing          |
+| SMTP              | Email notifications       |
+| APScheduler       | Scheduled blog publishing |
+| Postman / Swagger | API testing               |
 
 ---
 
@@ -91,6 +125,7 @@ The application includes authentication, blog posts, comments, likes, subscripti
 
 ```text
 blog-api/
+
 │
 ├── app/
 │   ├── auth.py
@@ -99,7 +134,9 @@ blog-api/
 │   ├── models.py
 │   ├── schemas.py
 │   ├── email_service.py
+│   ├── invoice.py
 │   ├── main.py
+│   │
 │   ├── routers/
 │   │   ├── auth.py
 │   │   ├── posts.py
@@ -109,8 +146,10 @@ blog-api/
 │   │   ├── dashboard.py
 │   │   ├── notifications.py
 │   │   └── ai_support.py
+│   │
 │   └── services/
-│       └── notification_service.py
+│       ├── notification_service.py
+│       └── scheduler.py
 │
 ├── blog-notification-frontend/
 │   ├── src/
@@ -136,9 +175,11 @@ blog-api/
 
 ```powershell
 git clone <your-github-repository-url>
+
 cd blog-api
 
 python -m venv venv
+
 venv\Scripts\activate
 
 python -m pip install -r requirements.txt
@@ -148,6 +189,7 @@ python -m pip install -r requirements.txt
 
 ```powershell
 cd blog-notification-frontend
+
 npm install
 ```
 
@@ -178,7 +220,9 @@ AUTH0_CLIENT_ID=your-auth0-client-id
 
 ```powershell
 cd C:\Users\Welcome\blog-api
+
 venv\Scripts\activate
+
 python -m uvicorn app.main:app --reload
 ```
 
@@ -196,6 +240,7 @@ Open another terminal:
 
 ```powershell
 cd C:\Users\Welcome\blog-api\blog-notification-frontend
+
 npm run dev
 ```
 
@@ -210,7 +255,13 @@ Frontend:
 ### Normal Login
 
 ```text
-React → /auth/login → Backend JWT → Protected APIs
+React
+  ↓
+/auth/login
+  ↓
+Backend JWT
+  ↓
+Protected APIs
 ```
 
 ### Auth0 Login
@@ -249,12 +300,15 @@ For local development, configure the Auth0 application with:
 
 ```text
 Allowed Callback URLs:
+
 http://localhost:5173
 
 Allowed Logout URLs:
+
 http://localhost:5173
 
 Allowed Web Origins:
+
 http://localhost:5173
 ```
 
@@ -262,6 +316,91 @@ Enable:
 
 * Google connection
 * Facebook connection
+
+---
+
+## Scheduled Blog Publishing
+
+### Publishing Options
+
+The post creation and update APIs support three publishing options:
+
+| Option     | Status      | Behavior                                            |
+| ---------- | ----------- | --------------------------------------------------- |
+| `publish`  | `published` | Publishes immediately                               |
+| `draft`    | `draft`     | Saves as draft                                      |
+| `schedule` | `scheduled` | Publishes automatically at the selected future time |
+
+### Create Scheduled Post
+
+Endpoint:
+
+```http
+POST /posts/
+```
+
+Example form-data:
+
+```text
+title=Future of Artificial Intelligence
+content=AI will transform many industries in the coming years.
+publish_option=schedule
+scheduled_at=2026-09-29T08:41:34
+```
+
+When a future `scheduled_at` value is supplied:
+
+```text
+status = scheduled
+published_at = null
+```
+
+### Automatic Publishing
+
+APScheduler runs in the FastAPI application and checks scheduled posts every 10 seconds.
+
+When the scheduled time is reached:
+
+```text
+status = scheduled
+        ↓
+scheduled_at <= current UTC time
+        ↓
+status = published
+published_at = current UTC time
+scheduled_at = null
+```
+
+Example verified result:
+
+```json
+{
+    "id": 14,
+    "title": "Scheduled Publishing Test",
+    "status": "published",
+    "scheduled_at": null,
+    "published_at": "2026-09-29T08:41:39.674256"
+}
+```
+
+### Validation Rules
+
+* `scheduled_at` is required when `publish_option` is `schedule`.
+* `scheduled_at` must be in the future.
+* Past scheduled times are rejected.
+* Draft posts cannot have a scheduled datetime.
+* Immediately published posts cannot have a scheduled datetime.
+* Scheduled posts are not publicly visible until they are published.
+
+### Scheduler
+
+The scheduler implementation is located at:
+
+```text
+app/services/scheduler.py
+```
+
+The scheduler is started when the FastAPI application starts and stopped when the application shuts down.
 
 ---
 
@@ -273,7 +412,7 @@ Enable:
 | POST   | `/auth/login`                 | Normal login         |
 | POST   | `/auth/auth0-login`           | Auth0 login          |
 | GET    | `/auth/me`                    | Current user         |
-| GET    | `/posts/`                     | List posts           |
+| GET    | `/posts/`                     | List published posts |
 | POST   | `/posts/`                     | Create post          |
 | GET    | `/posts/{id}`                 | View post            |
 | PUT    | `/posts/{id}`                 | Update post          |
@@ -308,6 +447,47 @@ The application was tested using:
 * Post CRUD and authorization
 * Comments and likes
 * Email notifications
+* Scheduled blog publishing
+
+### Scheduled Publishing Test
+
+The scheduled publishing feature was tested end-to-end.
+
+Test flow:
+
+```text
+1. Create scheduled post
+        ↓
+2. Verify status = scheduled
+        ↓
+3. Wait until scheduled time
+        ↓
+4. APScheduler detects the post
+        ↓
+5. Post automatically changes to published
+        ↓
+6. published_at timestamp is recorded
+```
+
+Verified test:
+
+```text
+Post ID: 14
+
+Scheduled time:
+2026-09-29T08:41:34 UTC
+
+Published time:
+2026-09-29T08:41:39.674256 UTC
+
+Initial status:
+scheduled
+
+Final status:
+published
+```
+
+The scheduled publishing workflow was successfully verified end-to-end.
 
 ---
 

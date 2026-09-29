@@ -32,10 +32,23 @@ class PostCreate(BaseModel):
     title: str = Field(min_length=3, max_length=200)
     content: str = Field(min_length=10)
 
+    publish_option: str = Field(
+        default="publish",
+        pattern="^(publish|draft|schedule)$"
+    )
+
+    scheduled_at: datetime | None = None
 
 class PostUpdate(BaseModel):
     title: str = Field(min_length=3, max_length=200)
     content: str = Field(min_length=10)
+
+    publish_option: str = Field(
+        default="publish",
+        pattern="^(publish|draft|schedule)$"
+    )
+
+    scheduled_at: datetime | None = None
 
 class PostResponse(BaseModel):
     id: int
@@ -44,6 +57,11 @@ class PostResponse(BaseModel):
     image: str | None = None
     images: list[str] = []
     author_id: int
+
+    status: str
+    scheduled_at: datetime | None = None
+    published_at: datetime | None = None
+
     created_at: datetime
 
     class Config:

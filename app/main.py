@@ -17,6 +17,7 @@ from .routers import (
     dashboard as dashboard_router
 )
 from .routers import ai_support
+from .services.scheduler import start_scheduler, stop_scheduler
 
 Base.metadata.create_all(bind=engine)
 
@@ -24,6 +25,15 @@ app = FastAPI(
     title="Blog Management API",
     version="1.0.0"
 )
+
+@app.on_event("startup")
+def startup_event():
+    start_scheduler()
+
+
+@app.on_event("shutdown")
+def shutdown_event():
+    stop_scheduler()
 
 app.add_middleware(
     CORSMiddleware,

@@ -1,5 +1,6 @@
 import os
 import uuid
+from datetime import datetime
 from math import ceil
 from typing import Annotated
 
@@ -11,7 +12,7 @@ from fastapi import (
     HTTPException,
     Query,
     UploadFile,
-    status
+    status,
 )
 from sqlalchemy.orm import Session
 
@@ -23,7 +24,7 @@ from ..schemas import PaginatedPostResponse, PostResponse
 
 router = APIRouter(
     prefix="/posts",
-    tags=["Posts"]
+    tags=["Posts"],
 )
 
 
@@ -33,9 +34,15 @@ os.makedirs(MEDIA_DIR, exist_ok=True)
 
 
 def save_image(image: UploadFile) -> str:
+    """Save uploaded image and return its public media path."""
+
     file_extension = os.path.splitext(image.filename)[1]
     unique_filename = f"{uuid.uuid4()}{file_extension}"
-    file_path = os.path.join(MEDIA_DIR, unique_filename)
+
+    file_path = os.path.join(
+        MEDIA_DIR,
+        unique_filename,
+    )
 
     with open(file_path, "wb") as buffer:
         buffer.write(image.file.read())
@@ -43,58 +50,151 @@ def save_image(image: UploadFile) -> str:
     return f"/media/posts/{unique_filename}"
 
 
+def validate_publish_option(
+    publish_option: str,
+    scheduled_at: datetime | None,
+):
+    """Validate publishing option and scheduled datetime."""
+
+    allowed_options = {
+        "publish",
+        "draft",
+        "schedule",
+    }
+
+    if publish_option not in allowed_options:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Invalid publish option. "
+                "Use publish, draft, or schedule."
+            ),
+        )
+
+    # Draft posts cannot have scheduled_at
+    if publish_option == "draft" and scheduled_at is not None:
+        raise HTTPException(
+            status_code=400,
+            detail="Draft posts cannot have scheduled_at.",
+        )
+
+    # Scheduled posts require a future datetime
+    if publish_option == "schedule":
+
+        if scheduled_at is None:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "scheduled_at is required "
+                    "when scheduling a post."
+                ),
+            )
+
+        if scheduled_at <= datetime.utcnow():
+            raise HTTPException(
+                status_code=400,
+                detail="scheduled_at must be a future datetime.",
+            )
+
+    # Immediate publishing cannot have scheduled_at
+    if publish_option == "publish" and scheduled_at is not None:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "scheduled_at must be empty "
+                "when publishing immediately."
+            ),
+        )
+
+
 @router.post(
     "/",
     response_model=PostResponse,
-    status_code=status.HTTP_201_CREATED
+    status_code=status.HTTP_201_CREATED,
 )
 def create_post(
     title: str = Form(...),
     content: str = Form(...),
+    publish_option: str = Form("publish"),
+    scheduled_at: datetime | None = Form(None),
     images: Annotated[
         list[UploadFile],
-        File(description="Upload one or more images")
+        File(description="Upload one or more images"),
     ] = [],
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
+    """
+    Create a new blog post.
+
+    Publishing options:
+
+    publish  -> Published immediately
+    draft    -> Saved as draft
+    schedule -> Scheduled for future publishing
+    """
+
+    # Validate publishing settings
+    validate_publish_option(
+        publish_option,
+        scheduled_at,
+    )
+
     # Check active subscription
     if current_user.subscription_plan_id is None:
         raise HTTPException(
             status_code=403,
-            detail="You need an active subscription to create posts."
+            detail="You need an active subscription to create posts.",
         )
 
-    plan = db.query(SubscriptionPlan).filter(
-        SubscriptionPlan.id == current_user.subscription_plan_id
-    ).first()
+    plan = (
+        db.query(SubscriptionPlan)
+        .filter(
+            SubscriptionPlan.id
+            == current_user.subscription_plan_id
+        )
+        .first()
+    )
 
     if plan is None:
         raise HTTPException(
             status_code=404,
-            detail="Active subscription plan not found."
+            detail="Active subscription plan not found.",
         )
 
     # Check maximum number of posts
     if plan.max_posts is not None:
-        post_count = db.query(Post).filter(
-            Post.author_id == current_user.id
-        ).count()
+
+        post_count = (
+            db.query(Post)
+            .filter(
+                Post.author_id == current_user.id
+            )
+            .count()
+        )
 
         if post_count >= plan.max_posts:
             raise HTTPException(
                 status_code=403,
-                detail="You’ve reached your plan limit. Kindly upgrade your plan to continue."
+                detail=(
+                    "You’ve reached your plan limit. "
+                    "Kindly upgrade your plan to continue."
+                ),
             )
 
     # Check maximum images per post
     if plan.max_images_per_post is not None:
+
         if len(images) > plan.max_images_per_post:
             raise HTTPException(
                 status_code=403,
-                detail="You’ve reached your plan limit. Kindly upgrade your plan to continue."
+                detail=(
+                    "You’ve reached your plan limit. "
+                    "Kindly upgrade your plan to continue."
+                ),
             )
 
+    # Save uploaded images
     image_paths = []
 
     for image in images:
@@ -102,13 +202,40 @@ def create_post(
         image_paths.append(image_path)
 
     # Main image for backward compatibility
-    main_image = image_paths[0] if image_paths else None
+    main_image = (
+        image_paths[0]
+        if image_paths
+        else None
+    )
 
+    # Determine publishing status
+    if publish_option == "draft":
+
+        post_status = "draft"
+        post_scheduled_at = None
+        post_published_at = None
+
+    elif publish_option == "schedule":
+
+        post_status = "scheduled"
+        post_scheduled_at = scheduled_at
+        post_published_at = None
+
+    else:
+
+        post_status = "published"
+        post_scheduled_at = None
+        post_published_at = datetime.utcnow()
+
+    # Create post
     new_post = Post(
         title=title,
         content=content,
         image=main_image,
-        author_id=current_user.id
+        author_id=current_user.id,
+        status=post_status,
+        scheduled_at=post_scheduled_at,
+        published_at=post_published_at,
     )
 
     db.add(new_post)
@@ -117,9 +244,10 @@ def create_post(
 
     # Save multiple images
     for image_path in image_paths:
+
         post_image = PostImage(
             post_id=new_post.id,
-            image_path=image_path
+            image_path=image_path,
         )
 
         db.add(post_image)
@@ -132,30 +260,43 @@ def create_post(
 
 @router.get(
     "/",
-    response_model=PaginatedPostResponse
+    response_model=PaginatedPostResponse,
 )
 def get_posts(
     page: int = Query(1, ge=1),
     limit: int = Query(10, ge=1, le=100),
     search: str | None = Query(None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
-    query = db.query(Post)
+    """
+    Get published blog posts.
+
+    Draft and scheduled posts are not publicly visible.
+    """
+
+    query = db.query(Post).filter(
+        Post.status == "published"
+    )
 
     # Search by title or content
     if search:
+
         search_term = f"%{search}%"
 
         query = query.filter(
-            Post.title.ilike(search_term) |
-            Post.content.ilike(search_term)
+            Post.title.ilike(search_term)
+            | Post.content.ilike(search_term)
         )
 
     # Total number of matching posts
     total = query.count()
 
     # Calculate total pages
-    total_pages = ceil(total / limit) if total > 0 else 0
+    total_pages = (
+        ceil(total / limit)
+        if total > 0
+        else 0
+    )
 
     # Calculate starting position
     offset = (page - 1) * limit
@@ -176,8 +317,14 @@ def get_posts(
                 "title": post.title,
                 "content": post.content,
                 "image": post.image,
-                "images": [img.image_path for img in post.images],
+                "images": [
+                    img.image_path
+                    for img in post.images
+                ],
                 "author_id": post.author_id,
+                "status": post.status,
+                "scheduled_at": post.scheduled_at,
+                "published_at": post.published_at,
                 "created_at": post.created_at,
             }
             for post in posts
@@ -185,26 +332,37 @@ def get_posts(
         "total": total,
         "page": page,
         "limit": limit,
-        "total_pages": total_pages
+        "total_pages": total_pages,
     }
 
 
 @router.get(
     "/{post_id}",
-    response_model=PostResponse
+    response_model=PostResponse,
 )
 def get_post(
     post_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
-    post = db.query(Post).filter(
-        Post.id == post_id
-    ).first()
+    """
+    Get a single published blog post.
+
+    Draft and scheduled posts are not publicly accessible.
+    """
+
+    post = (
+        db.query(Post)
+        .filter(
+            Post.id == post_id,
+            Post.status == "published",
+        )
+        .first()
+    )
 
     if not post:
         raise HTTPException(
             status_code=404,
-            detail="Post not found"
+            detail="Post not found",
         )
 
     # Track post view
@@ -213,51 +371,104 @@ def get_post(
     db.commit()
     db.refresh(post)
 
-    # Return response with image paths
     return {
         "id": post.id,
         "title": post.title,
         "content": post.content,
         "image": post.image,
-        "images": [img.image_path for img in post.images],
+        "images": [
+            img.image_path
+            for img in post.images
+        ],
         "author_id": post.author_id,
+        "status": post.status,
+        "scheduled_at": post.scheduled_at,
+        "published_at": post.published_at,
         "created_at": post.created_at,
     }
 
 
 @router.put(
     "/{post_id}",
-    response_model=PostResponse
+    response_model=PostResponse,
 )
 def update_post(
     post_id: int,
     title: str = Form(...),
     content: str = Form(...),
+    publish_option: str = Form("publish"),
+    scheduled_at: datetime | None = Form(None),
     image: UploadFile | None = File(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
-    post = db.query(Post).filter(
-        Post.id == post_id
-    ).first()
+    """
+    Update an existing blog post.
+
+    Publishing options:
+
+    publish  -> Published
+    draft    -> Draft
+    schedule -> Scheduled
+    """
+
+    post = (
+        db.query(Post)
+        .filter(
+            Post.id == post_id
+        )
+        .first()
+    )
 
     if not post:
         raise HTTPException(
             status_code=404,
-            detail="Post not found"
+            detail="Post not found",
         )
 
+    # Ownership check
     if post.author_id != current_user.id:
         raise HTTPException(
             status_code=403,
-            detail="You can only update your own posts"
+            detail="You can only update your own posts",
         )
 
+    # Validate publishing settings
+    validate_publish_option(
+        publish_option,
+        scheduled_at,
+    )
+
+    # Update basic post information
     post.title = title
     post.content = content
 
+    # Update publishing state
+    if publish_option == "draft":
+
+        post.status = "draft"
+        post.scheduled_at = None
+        post.published_at = None
+
+    elif publish_option == "schedule":
+
+        post.status = "scheduled"
+        post.scheduled_at = scheduled_at
+        post.published_at = None
+
+    else:
+
+        post.status = "published"
+        post.scheduled_at = None
+
+        # Set published_at only if this is
+        # the first time the post is published.
+        if post.published_at is None:
+            post.published_at = datetime.utcnow()
+
     # Replace image if a new image is uploaded
     if image:
+
         image_path = save_image(image)
         post.image = image_path
 
@@ -269,27 +480,34 @@ def update_post(
 
 @router.delete(
     "/{post_id}",
-    status_code=status.HTTP_204_NO_CONTENT
+    status_code=status.HTTP_204_NO_CONTENT,
 )
 def delete_post(
     post_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
-    post = db.query(Post).filter(
-        Post.id == post_id
-    ).first()
+    """Delete a post owned by the current user."""
+
+    post = (
+        db.query(Post)
+        .filter(
+            Post.id == post_id
+        )
+        .first()
+    )
 
     if not post:
         raise HTTPException(
             status_code=404,
-            detail="Post not found"
+            detail="Post not found",
         )
 
+    # Ownership check
     if post.author_id != current_user.id:
         raise HTTPException(
             status_code=403,
-            detail="You can only delete your own posts"
+            detail="You can only delete your own posts",
         )
 
     db.delete(post)

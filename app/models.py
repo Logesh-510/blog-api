@@ -92,7 +92,29 @@ class Post(Base):
     image = Column(String(500), nullable=True)
     author_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     views = Column(Integer, default=0, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    # Publishing fields
+    status = Column(
+        String(20),
+        default="published",
+        nullable=False
+    )
+
+    scheduled_at = Column(
+        DateTime,
+        nullable=True
+    )
+
+    published_at = Column(
+        DateTime,
+        nullable=True
+    )
+
+    created_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False
+    )
 
     author = relationship(
         "User",
@@ -116,7 +138,6 @@ class Post(Base):
         back_populates="post",
         cascade="all, delete-orphan"
     )
-
 
 class PostImage(Base):
     __tablename__ = "post_images"
